@@ -383,11 +383,9 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			}
 			r.out(`\begin{center}`)
 			r.cr()
+			// Trim extension so that LaTeX loads the most appropriate file.
 			ext := filepath.Ext(string(dest))
-			if len(ext) > 0 {
-				// Trim extension so that LaTeX loads the most appropriate file.
-				dest = dest[:len(dest)-len(ext)]
-			}
+			dest = dest[:len(dest)-len(ext)]
 			r.out(`\includegraphics[max width=\textwidth, max height=\textheight]{`, string(dest), `}`)
 			r.cr()
 			r.out(`\end{center}`)
