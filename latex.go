@@ -408,15 +408,27 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		// 	r.w.WriteString("mailto:")
 		// }
 		if node.NoteID != 0 {
-			// TODO: Implement footnotes. Wait for upstream fix.
-			if entering {
-				r.out(`\footnotemark[`, string(node.LinkData.Destination), `]`)
+			if entering && r.Extensions&bf.Footnotes != 0 {
+				r.out(`\footnote{`)
+				w := bytes.Buffer{}
+				footnoteNode := node.LinkData.Footnote
+				footnoteNode.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
+					if node == footnoteNode {
+						return bf.GoToNext
+					}
+					return r.RenderNode(&w, node, entering)
+				})
+				r.w.Write(w.Bytes())
+				r.out(`}`)
 			}
 			break
 		}
 		r.cmd("href{"+string(node.LinkData.Destination)+"}", entering)
 
 	case bf.List:
+		if node.IsFootnotesList {
+			return bf.SkipChildren
+		}
 		listType := "itemize"
 		if node.ListFlags&bf.ListTypeOrdered != 0 {
 			listType = "enumerate"
