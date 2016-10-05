@@ -3,6 +3,8 @@
 
 // TODO: LaTeX-style "Quotes"? See v1.
 // TODO: Add tests other TODOs are closed.
+// TODO: Add flag to skip header.
+// TODO: Add flag to use titleblock as chapter title.
 
 // Package latex is a LaTeX renderer for the Blackfriday Markdown Processor
 package latex
@@ -399,9 +401,9 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		}
 
 	case bf.Link:
-		// TODO: What about safety? See HTML renderer.
-		// TODO: Relative links?
-		// TODO: Email support.
+		// TODO: Links: What about safety? See HTML renderer.
+		// TODO: Links: Add relative link support?
+		// TODO: Links: Add e-mail support?
 		// if kind == bf.LinkTypeEmail {
 		// 	r.w.WriteString("mailto:")
 		// }
@@ -438,7 +440,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 
 	case bf.Softbreak:
 		// r.cr()
-		// TODO: make it configurable via out(renderer.softbreak)
+		// TODO: Make it configurable via out(renderer.softbreak)
 		break
 
 	case bf.Strong:
