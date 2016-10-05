@@ -506,7 +506,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 }
 
 // Get title: concatenate all Text children of Titleblock.
-func title(ast *bf.Node) []byte {
+func getTitle(ast *bf.Node) []byte {
 	titleRenderer := Renderer{}
 
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
@@ -536,7 +536,11 @@ func hasFigures(ast *bf.Node) bool {
 // Render prints out the header, 'ast' and its children recursively, and finally
 // a footer.
 func (r *Renderer) Render(ast *bf.Node) []byte {
-	r.writeDocumentHeader(string(title(ast)), r.Author, hasFigures(ast))
+	var title string
+	if r.Extensions&bf.Titleblock != 0 {
+		title = string(getTitle(ast))
+	}
+	r.writeDocumentHeader(title, r.Author, hasFigures(ast))
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
 		if node.Type == bf.Header && node.HeaderData.IsTitleblock {
 			return bf.SkipChildren
