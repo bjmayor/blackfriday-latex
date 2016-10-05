@@ -3,8 +3,6 @@
 
 // TODO: LaTeX-style "Quotes"? See v1.
 // TODO: Add tests other TODOs are closed.
-// TODO: Add flag to skip header.
-// TODO: Add flag to use titleblock as chapter title.
 
 // Package latex is a LaTeX renderer for the Blackfriday Markdown Processor
 package latex
@@ -13,6 +11,7 @@ import (
 	"bytes"
 	"io"
 	"path/filepath"
+	"strings"
 
 	bf "gopkg.in/russross/blackfriday.v2"
 )
@@ -24,10 +23,25 @@ import (
 type Renderer struct {
 	w          bytes.Buffer
 	Extensions bf.Extensions
+	Flags      LaTeXFlags
 
 	Author    string
-	Languages string
+	Languages string // For Babel.
 }
+
+type LaTeXFlags int
+
+const (
+	LaTeXFlagsNone LaTeXFlags = 0
+
+	// Generate a complete LaTeX document, preamble included. Titleblock is used
+	// as title if on. TOC is generated if the extension is on.
+	CompletePage LaTeXFlags = 1 << iota
+
+	// Use Titleblock (if extension is on) as chapter title. Ignored when
+	// CompletePage is on.
+	ChapterTitle
+)
 
 func cellAlignment(align bf.CellAlignFlags) string {
 	switch align {
@@ -552,13 +566,22 @@ func (r *Renderer) Render(ast *bf.Node) []byte {
 	if r.Extensions&bf.Titleblock != 0 {
 		title = string(getTitle(ast))
 	}
-	r.writeDocumentHeader(title, r.Author, hasFigures(ast))
+
+	if r.Flags&CompletePage != 0 {
+		r.writeDocumentHeader(title, r.Author, hasFigures(ast))
+	} else if r.Flags&ChapterTitle != 0 && strings.TrimSpace(title) != "" {
+		r.out(`\chapter{` + title + "}\n\n")
+	}
+
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
 		if node.Type == bf.Header && node.HeaderData.IsTitleblock {
 			return bf.SkipChildren
 		}
 		return r.RenderNode(&r.w, node, entering)
 	})
-	r.writeDocumentFooter()
+
+	if r.Flags&CompletePage != 0 {
+		r.writeDocumentFooter()
+	}
 	return r.w.Bytes()
 }
