@@ -1,7 +1,8 @@
 # Blackfriday-LaTeX
 
-Blackfriday-LaTeX is a LaTeX renderer for the
-[Blackfriday](http://github.com/russross/blackfriday) library (v2 or above).
+Blackfriday-LaTeX is a LaTeX renderer for the [Blackfriday][] Markdown processor (v2).
+
+[blackfriday]: http://github.com/russross/blackfriday
 
 Warning: Both Blackfriday v2 and this renderer are a work-in-progress.
 
@@ -9,48 +10,28 @@ Warning: Both Blackfriday v2 and this renderer are a work-in-progress.
 
 Among others:
 
-- Fenced source code
+- Optional preamble
 - Title page
 - Table of contents
+- Footnotes
 - Tables
+- Fenced source code
 
-## Renderer parameters
+## Math support
 
-- Author: The document author displayed by the `\maketitle` command. This will
-only display if the `Titleblock` extension is on and a title is present.
+Since Markdown and CommonMark do not make any provision for parsing math, the
+renderer uses the following rules to render math:
 
-- Languages: The languages to be used by the `babel` package. Languages must be
-comma-spearated.
+- Math blocks are introduced with code blocks having the `math` language specifier.
 
-## Example
+		``` math
+		x+y=z
+		```
 
-``` go
-package main
+- Inline math is introduce with inline code prefixed by `$$ ` (space matters).
 
-import (
-	"fmt"
+		`$$ x+y=z`
 
-	bflatex "bitbucket.org/ambrevar/blackfriday-latex"
-	bf "gopkg.in/ambrevar/blackfriday.v2"
-)
+## Documentation
 
-var input = `
-% Sample input
-
-# Section
-
-Some _Markdown_ text.
-
-## Subsection
-
-Foobar.
-`
-
-func main() {
-	extensions := bf.CommonExtensions | bf.TOC | bf.Titleblock
-
-	ast := bf.Parse([]byte(input), bf.Options{Extensions: extensions})
-	renderer := bflatex.Renderer{Author: "John Doe", Languages: "english,french", Extensions: extensions}
-	fmt.Printf("%s\n", renderer.Render(ast))
-}
-```
+See [godoc.org](https://godoc.org/bitbucket.org/ambrevar/blackfriday-latex).

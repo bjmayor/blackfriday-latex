@@ -4,7 +4,7 @@
 // TODO: LaTeX-style "Quotes"? See v1.
 // TODO: Add tests other TODOs are closed.
 
-// Package latex is a LaTeX renderer for the Blackfriday Markdown Processor
+// Package latex is a LaTeX renderer for the Blackfriday Markdown processor.
 package latex
 
 import (
@@ -18,28 +18,38 @@ import (
 
 // Renderer is a type that implements the Renderer interface for LaTeX
 // output.
-//
-// Do not create this directly, instead use the NewLatexRenderer function.
 type Renderer struct {
-	w          bytes.Buffer
-	Extensions bf.Extensions
-	Flags      LaTeXFlags
+	w bytes.Buffer
 
-	Author    string
-	Languages string // For Babel.
+	// Supported Blackfriday extensions: Footnotes, Titleblock, TOC.
+	Extensions bf.Extensions
+
+	// Flags allow customizing this renderer's behavior.
+	Flags Flag
+
+	// The document author displayed by the `\maketitle` command.
+	// This will only display if the `Titleblock` extension is on and a title is
+	// present.
+	Author string
+
+	// The languages to be used by the `babel` package.
+	// Languages must be comma-spearated.
+	Languages string
 }
 
-type LaTeXFlags int
+// Flag controls the options of the renderer.
+type Flag int
 
 const (
-	LaTeXFlagsNone LaTeXFlags = 0
+	FlagsNone Flag = 0
 
-	// Generate a complete LaTeX document, preamble included. Titleblock is used
-	// as title if on. TOC is generated if the extension is on.
-	CompletePage LaTeXFlags = 1 << iota
+	// CompletePage Generates a complete LaTeX document, preamble included.
+	// Titleblock is used as title if on.
+	// TOC is generated if the extension is on.
+	CompletePage Flag = 1 << iota
 
-	// Use Titleblock (if extension is on) as chapter title. Ignored when
-	// CompletePage is on.
+	// ChapterTitle uses the titleblock (if the extension is on) as chapter title.
+	// Ignored when CompletePage is on.
 	ChapterTitle
 )
 
@@ -274,8 +284,8 @@ func getDelimiter(text []byte) byte {
 }
 
 // RenderNode renders a single node.
-// As a rule for consistency, each node is responsible for appending the needed
-// line breaks. Line breaks are never prepended.
+// As a rule of thumb to enforce consistency, each node is responsible for
+// appending the needed line breaks. Line breaks are never prepended.
 func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.WalkStatus {
 	switch node.Type {
 
@@ -291,6 +301,8 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			r.w.WriteByte('$')
 			break
 		}
+		// 'lstinline' needs an ASCII delimiter that is not in the node content.
+		// TODO: Find a more elegant fallback for when the code lists all ASCII characters.
 		delimiter := getDelimiter(node.Literal)
 		r.out(`\lstinline`)
 		if delimiter != 0 {
@@ -557,8 +569,8 @@ func hasFigures(ast *bf.Node) bool {
 	return result
 }
 
-// Render prints out the header, 'ast' and its children recursively, and finally
-// a footer.
+// Render prints out the whole document.
+// If the CompletePage flag is on, it will print the preamble and the closing '\end{document}' as well.
 func (r *Renderer) Render(ast *bf.Node) []byte {
 	var title string
 	if r.Extensions&bf.Titleblock != 0 {
