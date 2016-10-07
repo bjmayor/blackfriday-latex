@@ -381,6 +381,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		}
 
 	case bf.HTMLBlock:
+		// HTML code makes no sense in LaTeX.
 		break
 
 	case bf.HTMLSpan:
