@@ -288,6 +288,19 @@ func getDelimiter(text []byte) byte {
 	return 0
 }
 
+func hasPrefixCaseInsensitive(s, prefix []byte) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	delta := byte('a' - 'A')
+	for i, b := range prefix {
+		if b != s[i] && b != s[i]+delta {
+			return false
+		}
+	}
+	return true
+}
+
 // RenderNode renders a single node.
 // As a rule of thumb to enforce consistency, each node is responsible for
 // appending the needed line breaks. Line breaks are never prepended.
@@ -395,7 +408,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 	case bf.Image:
 		if entering {
 			dest := node.LinkData.Destination
-			if bytes.HasPrefix(dest, []byte("http://")) || bytes.HasPrefix(dest, []byte("https://")) {
+			if hasPrefixCaseInsensitive(dest, []byte("http://")) || hasPrefixCaseInsensitive(dest, []byte("https://")) {
 				r.out(`\url{`)
 				r.w.Write(dest)
 				r.out(`}`)
