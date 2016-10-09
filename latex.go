@@ -363,8 +363,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		r.cmd("emph", entering)
 
 	case bf.Hardbreak:
-		// TODO: How many cr()? Or should it be a manual space? Like \vspace{\baselineskip}.
-		r.cr()
+		r.out(`~\\`, "\n")
 
 	case bf.Header:
 		if node.IsTitleblock {
