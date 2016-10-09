@@ -1,8 +1,6 @@
 // Copyright © 2013-2016 Pierre Neidhardt <ambrevar@gmail.com>
 // Use of this file is governed by the license that can be found in LICENSE.
 
-// TODO: LaTeX-style "Quotes"? See v1.
-
 // Package latex is a LaTeX renderer for the Blackfriday Markdown processor.
 package latex
 
@@ -34,6 +32,9 @@ type Renderer struct {
 	// The languages to be used by the `babel` package.
 	// Languages must be comma-spearated.
 	Languages string
+
+	// If text is within quotes.
+	quoted bool
 }
 
 // Flag controls the options of the renderer.
@@ -69,6 +70,7 @@ var latexEscaper = [256][]byte{
 	'{':  []byte(`\{`),
 	'}':  []byte(`\}`),
 	'~':  []byte(`\~`),
+	'"':  []byte(`\enquote{`),
 }
 
 func (r *Renderer) esc(text []byte) {
@@ -88,7 +90,17 @@ func (r *Renderer) esc(text []byte) {
 		}
 
 		// escape a character
-		r.w.Write(latexEscaper[text[i]])
+		if text[i] == '"' {
+			if r.quoted {
+				r.w.WriteByte('}')
+				r.quoted = false
+			} else {
+				r.w.Write(latexEscaper[text[i]])
+				r.quoted = true
+			}
+		} else {
+			r.w.Write(latexEscaper[text[i]])
+		}
 	}
 }
 
@@ -156,7 +168,8 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 `)
 	}
 
-	r.out(`
+	r.out(`\usepackage{csquotes}
+
 \hypersetup{colorlinks,
 	citecolor=black,
 	filecolor=black,
@@ -167,7 +180,8 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 	breaklinks=true,
 	pdfauthor={Blackfriday Markdown Processor v`)
 	r.out(bf.Version)
-	r.out(`}
+	r.out(`},
+}
 
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
 \addtolength{\parskip}{0.5\baselineskip}
