@@ -53,6 +53,7 @@ const (
 	ChapterTitle
 )
 
+// TODO: turn to table.
 func cellAlignment(align bf.CellAlignFlags) string {
 	switch align {
 	case bf.TableAlignmentLeft:
@@ -102,39 +103,6 @@ func (r *Renderer) esc(text []byte) {
 // LaTeX preamble
 // TODO: Color source code and links?
 func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
-	titleDef := ""
-	titleCommand := ""
-	babel := ""
-
-	if title != "" {
-		titleDef = `
-\title{` + title + `}
-\author{` + author + `}
-`
-		titleCommand = `
-\maketitle
-`
-		if r.Extensions&bf.TOC != 0 {
-			titleCommand += `\vfill
-\thispagestyle{empty}
-
-\tableofcontents
-`
-			if hasFigures {
-				titleCommand += `\listoffigures
-`
-			}
-			titleCommand += `\clearpage
-`
-		}
-	}
-
-	if r.Languages != "" {
-		babel = `
-\usepackage[` + r.Languages + `]{babel}
-`
-	}
-
 	r.out(`\documentclass{article}
 
 \usepackage[utf8]{inputenc}
@@ -172,8 +140,13 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 	literate=
 	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
 	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
-	` + "{à}{{\\`a}}1 {è}{{\\`e}}1 {ì}{{\\`i}}1 {ò}{{\\`o}}1 {ù}{{\\`u}}1" + `
-	` + "{À}{{\\`A}}1 {È}{{\\'E}}1 {Ì}{{\\`I}}1 {Ò}{{\\`O}}1 {Ù}{{\\`U}}1" + `
+	`)
+	r.out(
+		"{à}{{\\`a}}1 {è}{{\\`e}}1 {ì}{{\\`i}}1 {ò}{{\\`o}}1 {ù}{{\\`u}}1",
+		"\n",
+		"{À}{{\\`A}}1 {È}{{\\'E}}1 {Ì}{{\\`I}}1 {Ò}{{\\`O}}1 {Ù}{{\\`U}}1",
+	)
+	r.out(`
 	{ä}{{\"a}}1 {ë}{{\"e}}1 {ï}{{\"i}}1 {ö}{{\"o}}1 {ü}{{\"u}}1
 	{Ä}{{\"A}}1 {Ë}{{\"E}}1 {Ï}{{\"I}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1
 	{â}{{\^a}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1
@@ -183,7 +156,15 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 	{ç}{{\c c}}1 {Ç}{{\c C}}1 {ø}{{\o}}1 {å}{{\r a}}1 {Å}{{\r A}}1
 	{€}{{\EUR}}1 {£}{{\pounds}}1
 }
-` + babel + `
+`)
+
+	if r.Languages != "" {
+		r.out(`
+\usepackage[`, r.Languages, `]{babel}
+`)
+	}
+
+	r.out(`
 \hypersetup{colorlinks,
 	citecolor=black,
 	filecolor=black,
@@ -192,17 +173,46 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 	urlcolor=black,
 	pdfstartview=FitH,
 	breaklinks=true,
-	pdfauthor={Blackfriday Markdown Processor v` + bf.Version + `}
-}
+	pdfauthor={Blackfriday Markdown Processor v`)
+	r.out(bf.Version)
+	r.out(`}
 
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
 \addtolength{\parskip}{0.5\baselineskip}
 \parindent=0pt
-` + titleDef + `
-\begin{document}
-` + titleCommand + `
-
 `)
+
+	if title != "" {
+		r.out(`
+\title{`, title, `}
+\author{`, author, `}
+`)
+	}
+
+	r.out(`
+\begin{document}
+`)
+
+	if title != "" {
+		r.out(`
+\maketitle
+`)
+		if r.Extensions&bf.TOC != 0 {
+			r.out(`\vfill
+\thispagestyle{empty}
+
+\tableofcontents
+`)
+			if hasFigures {
+				r.out(`\listoffigures
+`)
+			}
+			r.out(`\clearpage
+`)
+		}
+	}
+
+	r.out("\n\n")
 }
 
 func (r *Renderer) writeDocumentFooter() {
@@ -210,12 +220,12 @@ func (r *Renderer) writeDocumentFooter() {
 	r.cr()
 }
 
-func languageAttr(info []byte) string {
+func languageAttr(info []byte) []byte {
 	infoWords := bytes.Split(info, []byte("\t "))
 	if len(infoWords) > 0 {
-		return string(infoWords[0])
+		return infoWords[0]
 	}
-	return ""
+	return nil
 }
 
 func (r *Renderer) out(s ...string) {
@@ -225,7 +235,7 @@ func (r *Renderer) out(s ...string) {
 }
 
 func (r *Renderer) cr() {
-	r.out("\n")
+	r.w.WriteByte('\n')
 }
 
 func (r *Renderer) env(environment string, entering bool, args ...string) {
@@ -248,12 +258,6 @@ func (r *Renderer) env(environment string, entering bool, args ...string) {
 	}
 }
 
-func (r *Renderer) envLiteral(environment string, literal []byte, args ...string) {
-	r.env(environment, true, args...)
-	r.w.Write(literal)
-	r.env(environment, false)
-}
-
 func (r *Renderer) cmd(command string, entering bool) {
 	if entering {
 		r.out(`\`, command, `{`)
@@ -265,11 +269,9 @@ func (r *Renderer) cmd(command string, entering bool) {
 // Return the first ASCII character that is not in 'text'.
 // The resulting delimiter cannot be '*' nor space.
 func getDelimiter(text []byte) byte {
-	delimiters := make([]bool, 128)
+	delimiters := make([]bool, 256)
 	for _, v := range text {
-		if v < 128 {
-			delimiters[v] = true
-		}
+		delimiters[v] = true
 	}
 	// '!' is the character after space in the ASCII encoding.
 	for k := byte('!'); k < byte('*'); k++ {
@@ -320,7 +322,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 
 	case bf.CodeBlock:
 		lang := languageAttr(node.Info)
-		if lang == "math" {
+		if bytes.Compare(lang, []byte("math")) == 0 {
 			r.out("\\[\n")
 			r.w.Write(node.Literal)
 			r.out("\\]")
@@ -328,7 +330,11 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			r.cr()
 			break
 		}
-		r.envLiteral("lstlisting", node.Literal, `language=`+lang)
+		r.out(`\begin{lstlisting}[language=`)
+		r.w.Write(lang)
+		r.out("]\n")
+		r.w.Write(node.Literal)
+		r.out("\\end{lstlisting}\n\n")
 
 	case bf.Del:
 		r.cmd("sout", entering)
@@ -389,7 +395,9 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		if entering {
 			dest := node.LinkData.Destination
 			if bytes.HasPrefix(dest, []byte("http://")) || bytes.HasPrefix(dest, []byte("https://")) {
-				r.out(`\url{`, string(dest), `}`)
+				r.out(`\url{`)
+				r.w.Write(dest)
+				r.out(`}`)
 				return bf.SkipChildren
 			}
 			if node.LinkData.Title != nil {
@@ -401,12 +409,16 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			// Trim extension so that LaTeX loads the most appropriate file.
 			ext := filepath.Ext(string(dest))
 			dest = dest[:len(dest)-len(ext)]
-			r.out(`\includegraphics[max width=\textwidth, max height=\textheight]{`, string(dest), `}`)
+			r.out(`\includegraphics[max width=\textwidth, max height=\textheight]{`)
+			r.w.Write(dest)
+			r.out(`}`)
 			r.cr()
 			r.out(`\end{center}`)
 			r.cr()
 			if node.LinkData.Title != nil {
-				r.out(`\caption{`, string(node.LinkData.Title), `}`)
+				r.out(`\caption{`)
+				r.w.Write(node.LinkData.Title)
+				r.out(`}`)
 				r.cr()
 				r.out(`\end{figure}`)
 				r.cr()
@@ -450,10 +462,18 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			}
 			break
 		}
-		r.cmd("href{"+string(node.LinkData.Destination)+"}", entering)
+		if entering {
+			r.out(`\href{`)
+			r.w.Write(node.LinkData.Destination)
+			r.out(`}{`)
+		} else {
+			r.out(`}`)
+		}
 
 	case bf.List:
 		if node.IsFootnotesList {
+			// The footnote list is not needed for LaTeX as the footnotes are rendered
+			// directly from the links.
 			return bf.SkipChildren
 		}
 		listType := "itemize"
