@@ -234,6 +234,17 @@ func TestLink(t *testing.T) {
 			want:  `\href{mailto:doe@example.com}{doe@example.com}` + "\n",
 			ext:   bf.Autolink,
 		},
+		{
+			input: `[foo](http://example.com)`,
+			want:  `foo\footnote{\nolinkurl{http://example.com}}` + "\n",
+			flags: SkipLinks,
+		},
+		{
+			input: `http://example.com`,
+			want:  `\nolinkurl{http://example.com}` + "\n",
+			ext:   bf.Autolink,
+			flags: SkipLinks,
+		},
 	}
 
 	runTest(t, tdt)

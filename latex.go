@@ -54,6 +54,9 @@ const (
 
 	// No paragraph indentation.
 	NoParIndent
+
+	SkipLinks // Never link.
+	Safelink  // Only link to trusted protocols.
 )
 
 var cellAlignment = [4]byte{
@@ -427,8 +430,28 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		}
 
 	case bf.Link:
-		// TODO: Links: What about safety? See HTML renderer.
 		// TODO: Relative links do not make sense in LaTeX. Print a warning?
+		dest := node.LinkData.Destination
+
+		// Raw URI
+		if needSkipLink(r.Flags, dest) {
+			if node.FirstChild != node.LastChild || node.FirstChild.Type != bf.Text || bytes.Compare(dest, node.FirstChild.Literal) != 0 {
+				if !entering {
+					r.w.WriteString(`\footnote{\nolinkurl{`)
+					r.w.Write(dest)
+					r.w.WriteString(`}}`)
+				}
+				break
+			}
+			// Link content (only one Text child) and destination are identical (e.g.
+			// with autolink).
+			r.w.WriteString(`\nolinkurl{`)
+			r.w.Write(dest)
+			r.w.WriteByte('}')
+			return bf.SkipChildren
+		}
+
+		// Footnotes
 		if node.NoteID != 0 {
 			if entering && r.Extensions&bf.Footnotes != 0 {
 				r.w.WriteString(`\footnote{`)
@@ -445,9 +468,11 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			}
 			break
 		}
+
+		// Normal link
 		if entering {
 			r.w.WriteString(`\href{`)
-			r.w.Write(node.LinkData.Destination)
+			r.w.Write(dest)
 			r.w.WriteString(`}{`)
 		} else {
 			r.w.WriteByte('}')
