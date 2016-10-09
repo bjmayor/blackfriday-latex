@@ -51,6 +51,9 @@ const (
 	// ChapterTitle uses the titleblock (if the extension is on) as chapter title.
 	// Ignored when CompletePage is on.
 	ChapterTitle
+
+	// No paragraph indentation.
+	NoParIndent
 )
 
 var cellAlignment = [4]byte{
@@ -185,8 +188,12 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
 \addtolength{\parskip}{0.5\baselineskip}
-\parindent=0pt
 `)
+
+	if r.Flags&NoParIndent != 0 {
+		r.out(`\parindent=0pt
+`)
+	}
 
 	if title != "" {
 		r.out(`
