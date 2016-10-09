@@ -66,13 +66,16 @@ func cellAlignment(align bf.CellAlignFlags) string {
 	}
 }
 
-func needsBackslash(c byte) bool {
-	for _, r := range []byte("_{}%$&\\~#") {
-		if c == r {
-			return true
-		}
-	}
-	return false
+var latexEscaper = [256][]byte{
+	'#':  []byte(`\#`),
+	'$':  []byte(`\$`),
+	'%':  []byte(`\%`),
+	'&':  []byte(`\&`),
+	'\\': []byte(`\textbackslash{}`),
+	'_':  []byte(`\_`),
+	'{':  []byte(`\{`),
+	'}':  []byte(`\}`),
+	'~':  []byte(`\~`),
 }
 
 func (r *Renderer) esc(text []byte) {
@@ -80,19 +83,19 @@ func (r *Renderer) esc(text []byte) {
 		// directly copy normal characters
 		org := i
 
-		for i < len(text) && !needsBackslash(text[i]) {
+		for i < len(text) && latexEscaper[text[i]] == nil {
 			i++
 		}
+
 		if i > org {
 			r.w.Write(text[org:i])
+			if i >= len(text) {
+				break
+			}
 		}
 
 		// escape a character
-		if i >= len(text) {
-			break
-		}
-		r.w.WriteByte('\\')
-		r.w.WriteByte(text[i])
+		r.w.Write(latexEscaper[text[i]])
 	}
 }
 
