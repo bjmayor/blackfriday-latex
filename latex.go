@@ -515,8 +515,8 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		}
 
 	case bf.Softbreak:
-		// r.cr()
-		// TODO: Make it configurable via out(renderer.softbreak)
+		// TODO: Upstream does not use it. If status changes, linebreaking should be
+		// updated.
 		break
 
 	case bf.Strong:
