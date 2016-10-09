@@ -2,7 +2,6 @@
 // Use of this file is governed by the license that can be found in LICENSE.
 
 // TODO: LaTeX-style "Quotes"? See v1.
-// TODO: Add tests other TODOs are closed.
 
 // Package latex is a LaTeX renderer for the Blackfriday Markdown processor.
 package latex
@@ -53,18 +52,11 @@ const (
 	ChapterTitle
 )
 
-// TODO: turn to table.
-func cellAlignment(align bf.CellAlignFlags) string {
-	switch align {
-	case bf.TableAlignmentLeft:
-		return "l"
-	case bf.TableAlignmentRight:
-		return "r"
-	case bf.TableAlignmentCenter:
-		return "c"
-	default:
-		return "l"
-	}
+var cellAlignment = [4]byte{
+	0: 'l',
+	bf.TableAlignmentLeft:   'l',
+	bf.TableAlignmentRight:  'r',
+	bf.TableAlignmentCenter: 'c',
 }
 
 var latexEscaper = [256][]byte{
@@ -238,18 +230,9 @@ func (r *Renderer) cr() {
 	r.w.WriteByte('\n')
 }
 
-func (r *Renderer) env(environment string, entering bool, args ...string) {
+func (r *Renderer) env(environment string, entering bool) {
 	if entering {
 		r.out(`\begin{`, environment, `}`)
-		if len(args) > 0 {
-			r.out("[")
-			for _, v := range args {
-				r.out(v)
-				r.out(",")
-			}
-			r.out("]")
-		}
-
 		r.cr()
 	} else {
 		r.out(`\end{`, environment, `}`)
@@ -527,7 +510,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			node.Walk(func(c *bf.Node, entering bool) bf.WalkStatus {
 				if c.Type == bf.TableCell && entering {
 					for cell := c; cell != nil; cell = cell.Next {
-						r.out(cellAlignment(cell.Align))
+						r.w.WriteByte(cellAlignment[cell.Align])
 					}
 					return bf.Terminate
 				}
