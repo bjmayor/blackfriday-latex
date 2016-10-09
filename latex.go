@@ -110,7 +110,7 @@ func (r *Renderer) esc(text []byte) {
 // LaTeX preamble
 // TODO: Color source code and links?
 func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
-	r.out(`\documentclass{article}
+	r.w.WriteString(`\documentclass{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -148,12 +148,11 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
 	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
 	`)
-	r.out(
-		"{à}{{\\`a}}1 {è}{{\\`e}}1 {ì}{{\\`i}}1 {ò}{{\\`o}}1 {ù}{{\\`u}}1",
-		"\n",
-		"{À}{{\\`A}}1 {È}{{\\'E}}1 {Ì}{{\\`I}}1 {Ò}{{\\`O}}1 {Ù}{{\\`U}}1",
-	)
-	r.out(`
+	r.w.WriteString(
+		"{à}{{\\`a}}1 {è}{{\\`e}}1 {ì}{{\\`i}}1 {ò}{{\\`o}}1 {ù}{{\\`u}}1" +
+			"\n\t" +
+			"{À}{{\\`A}}1 {È}{{\\'E}}1 {Ì}{{\\`I}}1 {Ò}{{\\`O}}1 {Ù}{{\\`U}}1")
+	r.w.WriteString(`
 	{ä}{{\"a}}1 {ë}{{\"e}}1 {ï}{{\"i}}1 {ö}{{\"o}}1 {ü}{{\"u}}1
 	{Ä}{{\"A}}1 {Ë}{{\"E}}1 {Ï}{{\"I}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1
 	{â}{{\^a}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1
@@ -166,12 +165,10 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 `)
 
 	if r.Languages != "" {
-		r.out(`
-\usepackage[`, r.Languages, `]{babel}
-`)
+		r.w.WriteString("\n" + `\usepackage[` + r.Languages + `]{babel}` + "\n")
 	}
 
-	r.out(`\usepackage{csquotes}
+	r.w.WriteString(`\usepackage{csquotes}
 
 \hypersetup{colorlinks,
 	citecolor=black,
@@ -182,8 +179,8 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 	pdfstartview=FitH,
 	breaklinks=true,
 	pdfauthor={Blackfriday Markdown Processor v`)
-	r.out(bf.Version)
-	r.out(`},
+	r.w.WriteString(bf.Version)
+	r.w.WriteString(`},
 }
 
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
@@ -191,46 +188,45 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 `)
 
 	if r.Flags&NoParIndent != 0 {
-		r.out(`\parindent=0pt
+		r.w.WriteString(`\parindent=0pt
 `)
 	}
 
 	if title != "" {
-		r.out(`
-\title{`, title, `}
-\author{`, author, `}
+		r.w.WriteString(`
+\title{` + title + `}
+\author{` + author + `}
 `)
 	}
 
-	r.out(`
+	r.w.WriteString(`
 \begin{document}
 `)
 
 	if title != "" {
-		r.out(`
+		r.w.WriteString(`
 \maketitle
 `)
 		if r.Extensions&bf.TOC != 0 {
-			r.out(`\vfill
+			r.w.WriteString(`\vfill
 \thispagestyle{empty}
 
 \tableofcontents
 `)
 			if hasFigures {
-				r.out(`\listoffigures
+				r.w.WriteString(`\listoffigures
 `)
 			}
-			r.out(`\clearpage
+			r.w.WriteString(`\clearpage
 `)
 		}
 	}
 
-	r.out("\n\n")
+	r.w.WriteString("\n\n")
 }
 
 func (r *Renderer) writeDocumentFooter() {
-	r.out(`\end{document}`)
-	r.cr()
+	r.w.WriteString(`\end{document}` + "\n")
 }
 
 func languageAttr(info []byte) []byte {
@@ -241,32 +237,19 @@ func languageAttr(info []byte) []byte {
 	return nil
 }
 
-func (r *Renderer) out(s ...string) {
-	for _, v := range s {
-		r.w.WriteString(v)
-	}
-}
-
-func (r *Renderer) cr() {
-	r.w.WriteByte('\n')
-}
-
 func (r *Renderer) env(environment string, entering bool) {
 	if entering {
-		r.out(`\begin{`, environment, `}`)
-		r.cr()
+		r.w.WriteString(`\begin{` + environment + "}\n")
 	} else {
-		r.out(`\end{`, environment, `}`)
-		r.cr()
-		r.cr()
+		r.w.WriteString(`\end{` + environment + "}\n\n")
 	}
 }
 
 func (r *Renderer) cmd(command string, entering bool) {
 	if entering {
-		r.out(`\`, command, `{`)
+		r.w.WriteString(`\` + command + `{`)
 	} else {
-		r.out(`}`)
+		r.w.WriteByte('}')
 	}
 }
 
@@ -326,32 +309,28 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		// 'lstinline' needs an ASCII delimiter that is not in the node content.
 		// TODO: Find a more elegant fallback for when the code lists all ASCII characters.
 		delimiter := getDelimiter(node.Literal)
-		r.out(`\lstinline`)
+		r.w.WriteString(`\lstinline`)
 		if delimiter != 0 {
 			r.w.WriteByte(delimiter)
 			r.w.Write(node.Literal)
 			r.w.WriteByte(delimiter)
 		} else {
-			r.out(`@`)
-			r.out("<RENDERING ERROR: no delimiter found>")
-			r.out(`@`)
+			r.w.WriteString("!<RENDERING ERROR: no delimiter found>!")
 		}
 
 	case bf.CodeBlock:
 		lang := languageAttr(node.Info)
 		if bytes.Compare(lang, []byte("math")) == 0 {
-			r.out("\\[\n")
+			r.w.WriteString("\\[\n")
 			r.w.Write(node.Literal)
-			r.out("\\]")
-			r.cr()
-			r.cr()
+			r.w.WriteString("\\]\n\n")
 			break
 		}
-		r.out(`\begin{lstlisting}[language=`)
+		r.w.WriteString(`\begin{lstlisting}[language=`)
 		r.w.Write(lang)
-		r.out("]\n")
+		r.w.WriteString("]\n")
 		r.w.Write(node.Literal)
-		r.out("\\end{lstlisting}\n\n")
+		r.w.WriteString(`\end{lstlisting}` + "\n\n")
 
 	case bf.Del:
 		r.cmd("sout", entering)
@@ -363,7 +342,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		r.cmd("emph", entering)
 
 	case bf.Hardbreak:
-		r.out(`~\\`, "\n")
+		r.w.WriteString(`~\\` + "\n")
 
 	case bf.Header:
 		if node.IsTitleblock {
@@ -373,26 +352,26 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		if entering {
 			switch node.Level {
 			case 1:
-				r.out(`\section{`)
+				r.w.WriteString(`\section{`)
 			case 2:
-				r.out(`\subsection{`)
+				r.w.WriteString(`\subsection{`)
 			case 3:
-				r.out(`\subsubsection{`)
+				r.w.WriteString(`\subsubsection{`)
 			case 4:
-				r.out(`\paragraph{`)
+				r.w.WriteString(`\paragraph{`)
 			case 5:
-				r.out(`\subparagraph{`)
+				r.w.WriteString(`\subparagraph{`)
 			case 6:
-				r.out(`\textbf{`)
+				r.w.WriteString(`\textbf{`)
 			}
 		} else {
-			r.out(`}`)
+			r.w.WriteByte('}')
 			switch node.Level {
 			// Paragraph need no newline.
 			case 1, 2, 3:
-				r.cr()
+				r.w.WriteByte('\n')
 			default:
-				r.out(" ")
+				r.w.WriteByte(' ')
 			}
 		}
 
@@ -405,40 +384,31 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		break
 
 	case bf.HorizontalRule:
-		r.out(`\HRule{}`)
-		r.cr()
+		r.w.WriteString(`\HRule{}` + "\n")
 
 	case bf.Image:
 		if entering {
 			dest := node.LinkData.Destination
 			if hasPrefixCaseInsensitive(dest, []byte("http://")) || hasPrefixCaseInsensitive(dest, []byte("https://")) {
-				r.out(`\url{`)
+				r.w.WriteString(`\url{`)
 				r.w.Write(dest)
-				r.out(`}`)
+				r.w.WriteByte('}')
 				return bf.SkipChildren
 			}
 			if node.LinkData.Title != nil {
-				r.out(`\begin{figure}[!ht]`)
-				r.cr()
+				r.w.WriteString(`\begin{figure}[!ht]` + "\n")
 			}
-			r.out(`\begin{center}`)
-			r.cr()
+			r.w.WriteString(`\begin{center}` + "\n")
 			// Trim extension so that LaTeX loads the most appropriate file.
 			ext := filepath.Ext(string(dest))
 			dest = dest[:len(dest)-len(ext)]
-			r.out(`\includegraphics[max width=\textwidth, max height=\textheight]{`)
+			r.w.WriteString(`\includegraphics[max width=\textwidth, max height=\textheight]{`)
 			r.w.Write(dest)
-			r.out(`}`)
-			r.cr()
-			r.out(`\end{center}`)
-			r.cr()
+			r.w.WriteString("}\n" + `\end{center}` + "\n")
 			if node.LinkData.Title != nil {
-				r.out(`\caption{`)
+				r.w.WriteString(`\caption{`)
 				r.w.Write(node.LinkData.Title)
-				r.out(`}`)
-				r.cr()
-				r.out(`\end{figure}`)
-				r.cr()
+				r.w.WriteString("}\n" + `\end{figure}` + "\n")
 			}
 		}
 		return bf.SkipChildren
@@ -446,13 +416,13 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 	case bf.Item:
 		if entering {
 			if node.ListFlags&bf.ListTypeTerm != 0 {
-				r.out(`\item [`)
+				r.w.WriteString(`\item [`)
 			} else if node.ListFlags&bf.ListTypeDefinition == 0 {
-				r.out(`\item `)
+				r.w.WriteString(`\item `)
 			}
 		} else {
 			if node.ListFlags&bf.ListTypeTerm != 0 {
-				r.out("] ")
+				r.w.WriteString("] ")
 			}
 		}
 
@@ -465,7 +435,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		// }
 		if node.NoteID != 0 {
 			if entering && r.Extensions&bf.Footnotes != 0 {
-				r.out(`\footnote{`)
+				r.w.WriteString(`\footnote{`)
 				w := bytes.Buffer{}
 				footnoteNode := node.LinkData.Footnote
 				footnoteNode.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
@@ -475,16 +445,16 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 					return r.RenderNode(&w, node, entering)
 				})
 				r.w.Write(w.Bytes())
-				r.out(`}`)
+				r.w.WriteString(`}`)
 			}
 			break
 		}
 		if entering {
-			r.out(`\href{`)
+			r.w.WriteString(`\href{`)
 			r.w.Write(node.LinkData.Destination)
-			r.out(`}{`)
+			r.w.WriteString(`}{`)
 		} else {
-			r.out(`}`)
+			r.w.WriteByte('}')
 		}
 
 	case bf.List:
@@ -506,10 +476,10 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		if !entering {
 			// If paragraph is the term of a definition list, don't insert new lines.
 			if node.Parent.Type != bf.Item || node.Parent.ListFlags&bf.ListTypeTerm == 0 {
-				r.cr()
+				r.w.WriteByte('\n')
 				// Don't insert an additional linebreak after last node of an item, a quote, etc.
 				if node.Next != nil {
-					r.cr()
+					r.w.WriteByte('\n')
 				}
 			}
 		}
@@ -524,9 +494,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 
 	case bf.Table:
 		if entering {
-			r.out(`\begin{center}`)
-			r.cr()
-			r.out(`\begin{tabular}{`)
+			r.w.WriteString(`\begin{center}` + "\n" + `\begin{tabular}{`)
 			node.Walk(func(c *bf.Node, entering bool) bf.WalkStatus {
 				if c.Type == bf.TableCell && entering {
 					for cell := c; cell != nil; cell = cell.Next {
@@ -536,15 +504,9 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 				}
 				return bf.GoToNext
 			})
-			r.out("}")
-			r.cr()
-
+			r.w.WriteString("}\n")
 		} else {
-			r.out(`\end{tabular}`)
-			r.cr()
-			r.out(`\end{center}`)
-			r.cr()
-			r.cr()
+			r.w.WriteString(`\end{tabular}` + "\n" + `\end{center}` + "\n\n")
 		}
 
 	case bf.TableBody:
@@ -556,19 +518,17 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			r.cmd("textbf", entering)
 		}
 		if !entering && node.Next != nil {
-			r.out(" & ")
+			r.w.WriteString(" & ")
 		}
 
 	case bf.TableHead:
 		if !entering {
-			r.out(`\hline`)
-			r.cr()
+			r.w.WriteString(`\hline` + "\n")
 		}
 
 	case bf.TableRow:
 		if !entering {
-			r.out(` \\`)
-			r.cr()
+			r.w.WriteString(` \\` + "\n")
 		}
 
 	case bf.Text:
@@ -620,7 +580,7 @@ func (r *Renderer) Render(ast *bf.Node) []byte {
 	if r.Flags&CompletePage != 0 {
 		r.writeDocumentHeader(title, r.Author, hasFigures(ast))
 	} else if r.Flags&ChapterTitle != 0 && strings.TrimSpace(title) != "" {
-		r.out(`\chapter{` + title + "}\n\n")
+		r.w.WriteString(`\chapter{` + title + "}\n\n")
 	}
 
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
