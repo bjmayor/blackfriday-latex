@@ -428,11 +428,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 
 	case bf.Link:
 		// TODO: Links: What about safety? See HTML renderer.
-		// TODO: Links: Add relative link support?
-		// TODO: Links: Add e-mail support?
-		// if kind == bf.LinkTypeEmail {
-		// 	r.w.WriteString("mailto:")
-		// }
+		// TODO: Relative links do not make sense in LaTeX. Print a warning?
 		if node.NoteID != 0 {
 			if entering && r.Extensions&bf.Footnotes != 0 {
 				r.w.WriteString(`\footnote{`)
