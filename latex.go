@@ -233,11 +233,14 @@ func (r *Renderer) writeDocumentFooter() {
 }
 
 func languageAttr(info []byte) []byte {
-	infoWords := bytes.Split(info, []byte("\t "))
-	if len(infoWords) > 0 {
-		return infoWords[0]
+	if len(info) == 0 {
+		return nil
 	}
-	return nil
+	endOfLang := bytes.IndexAny(info, "\t ")
+	if endOfLang < 0 {
+		return info
+	}
+	return info[:endOfLang]
 }
 
 func (r *Renderer) env(environment string, entering bool) {
