@@ -18,9 +18,6 @@ import (
 type Renderer struct {
 	w bytes.Buffer
 
-	// Supported Blackfriday extensions: Footnotes, Titleblock, TOC.
-	Extensions bf.Extensions
-
 	// Flags allow customizing this renderer's behavior.
 	Flags Flag
 
@@ -43,9 +40,7 @@ type Flag int
 const (
 	FlagsNone Flag = 0
 
-	// CompletePage Generates a complete LaTeX document, preamble included.
-	// Titleblock is used as title if on.
-	// TOC is generated if the extension is on.
+	// CompletePage generates a complete LaTeX document, preamble included.
 	CompletePage Flag = 1 << iota
 
 	// ChapterTitle uses the titleblock (if the extension is on) as chapter title.
@@ -57,6 +52,8 @@ const (
 
 	SkipLinks // Never link.
 	Safelink  // Only link to trusted protocols.
+
+	TOC // Generate the table of content.
 )
 
 var cellAlignment = [4]byte{
@@ -210,7 +207,7 @@ func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
 		r.w.WriteString(`
 \maketitle
 `)
-		if r.Extensions&bf.TOC != 0 {
+		if r.Flags&TOC != 0 {
 			r.w.WriteString(`\vfill
 \thispagestyle{empty}
 
@@ -350,7 +347,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 	case bf.Hardbreak:
 		r.w.WriteString(`~\\` + "\n")
 
-	case bf.Header:
+	case bf.Heading:
 		if node.IsTitleblock {
 			// Nothing to print but its children.
 			break
@@ -456,7 +453,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 
 		// Footnotes
 		if node.NoteID != 0 {
-			if entering && r.Extensions&bf.Footnotes != 0 {
+			if entering {
 				r.w.WriteString(`\footnote{`)
 				w := bytes.Buffer{}
 				footnoteNode := node.LinkData.Footnote
@@ -570,7 +567,7 @@ func getTitle(ast *bf.Node) []byte {
 	titleRenderer := Renderer{}
 
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
-		if node.Type == bf.Header && node.HeaderData.IsTitleblock && entering {
+		if node.Type == bf.Heading && node.HeadingData.IsTitleblock && entering {
 			node.Walk(func(c *bf.Node, entering bool) bf.WalkStatus {
 				return titleRenderer.RenderNode(&titleRenderer.w, c, entering)
 			})
@@ -597,18 +594,16 @@ func hasFigures(ast *bf.Node) bool {
 // If the CompletePage flag is on, it will print the preamble and the closing '\end{document}' as well.
 func (r *Renderer) Render(ast *bf.Node) []byte {
 	var title string
-	if r.Extensions&bf.Titleblock != 0 {
-		title = string(getTitle(ast))
-	}
 
 	if r.Flags&CompletePage != 0 {
+		title = string(getTitle(ast))
 		r.writeDocumentHeader(title, r.Author, hasFigures(ast))
 	} else if r.Flags&ChapterTitle != 0 && strings.TrimSpace(title) != "" {
 		r.w.WriteString(`\chapter{` + title + "}\n\n")
 	}
 
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
-		if node.Type == bf.Header && node.HeaderData.IsTitleblock {
+		if node.Type == bf.Heading && node.HeadingData.IsTitleblock {
 			return bf.SkipChildren
 		}
 		return r.RenderNode(&r.w, node, entering)
