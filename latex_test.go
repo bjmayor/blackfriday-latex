@@ -73,8 +73,9 @@ type testData struct {
 
 func runTest(t *testing.T, tdt []testData) {
 	for _, v := range tdt {
-		ast := bf.Parse([]byte(v.input), bf.Options{Extensions: v.ext})
-		renderer := Renderer{Extensions: v.ext, Flags: v.flags}
+		renderer := &Renderer{Flags: v.flags}
+		md := bf.New(bf.WithRenderer(renderer), bf.WithExtensions(v.ext))
+		ast := md.Parse([]byte(v.input))
 		got := string(renderer.Render(ast))
 		if v.want != got {
 			t.Errorf("got %q, want %q", got, v.want)
@@ -422,17 +423,18 @@ func TestDummy(t *testing.T) {
 */
 
 func BenchmarkRender(b *testing.B) {
-	extensions := bf.CommonExtensions | bf.TOC | bf.Titleblock
+	extensions := bf.CommonExtensions | bf.Titleblock
 	extensions |= bf.Footnotes
-	flags := CompletePage
+	flags := CompletePage | TOC
 
-	ast := bf.Parse([]byte(input), bf.Options{Extensions: extensions})
-	renderer := Renderer{
-		Author:     "John Doe",
-		Languages:  "english,french",
-		Extensions: extensions,
-		Flags:      flags,
+	renderer := &Renderer{
+		Author:    "John Doe",
+		Languages: "english,french",
+		Flags:     flags,
 	}
+
+	md := bf.New(bf.WithExtensions(extensions), bf.WithRenderer(renderer))
+	ast := md.Parse([]byte(input))
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {

@@ -20,16 +20,15 @@ Some _Markdown_ text.
 Foobar.
 `
 
-	extensions := bf.CommonExtensions | bf.TOC | bf.Titleblock
-
-	ast := bf.Parse([]byte(input), bf.Options{Extensions: extensions})
-
-	renderer := bflatex.Renderer{
-		Author:     "John Doe",
-		Languages:  "english,french",
-		Extensions: extensions,
+	extensions := bf.CommonExtensions | bf.Titleblock
+	renderer := &bflatex.Renderer{
+		Author:    "John Doe",
+		Languages: "english,french",
+		Flags:     bflatex.TOC,
 	}
+	md := bf.New(bf.WithRenderer(renderer), bf.WithExtensions(extensions))
 
+	ast := md.Parse([]byte(input))
 	fmt.Printf("%s\n", renderer.Render(ast))
 	// Output:
 	// \section{Section}
