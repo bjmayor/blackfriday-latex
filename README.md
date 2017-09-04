@@ -34,4 +34,4 @@ renderer uses the following rules to render math:
 
 ## Documentation
 
-See [godoc.org](https://godoc.org/bitbucket.org/ambrevar/blackfriday-latex).
+See [godoc.org](https://godoc.org/github.com/ambrevar/blackfriday-latex).

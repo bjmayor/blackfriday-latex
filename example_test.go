@@ -3,7 +3,7 @@ package latex_test
 import (
 	"fmt"
 
-	bflatex "bitbucket.org/ambrevar/blackfriday-latex"
+	bflatex "github.com/ambrevar/blackfriday-latex"
 
 	// TODO: Update link on v2 release.
 	bf "gopkg.in/russross/blackfriday.v2"
