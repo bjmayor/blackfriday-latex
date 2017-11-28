@@ -107,128 +107,6 @@ func (r *Renderer) esc(text []byte) {
 	}
 }
 
-// LaTeX preamble
-// TODO: Color source code and links?
-func (r *Renderer) writeDocumentHeader(title, author string, hasFigures bool) {
-	r.w.WriteString(`\documentclass{article}
-
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage{marvosym}
-\usepackage{textcomp}
-\DeclareUnicodeCharacter{20AC}{\EUR{}}
-\DeclareUnicodeCharacter{2260}{\neq}
-\DeclareUnicodeCharacter{2264}{\leq}
-\DeclareUnicodeCharacter{2265}{\geq}
-\DeclareUnicodeCharacter{22C5}{\cdot}
-\DeclareUnicodeCharacter{A0}{~}
-\DeclareUnicodeCharacter{B1}{\pm}
-\DeclareUnicodeCharacter{D7}{\times}
-
-\usepackage{amsmath}
-\usepackage[export]{adjustbox} % loads also graphicx
-\usepackage{listings}
-\usepackage[margin=1in]{geometry}
-\usepackage{verbatim}
-\usepackage[normalem]{ulem}
-\usepackage{hyperref}
-
-\lstset{
-	numbers=left,
-	breaklines=true,
-	xleftmargin=2\baselineskip,
-	showstringspaces=false,
-	basicstyle=\ttfamily,
-	keywordstyle=\bfseries\color{green!40!black},
-	commentstyle=\itshape\color{purple!40!black},
-	stringstyle=\color{orange},
-	numberstyle=\ttfamily,
-	literate=
-	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
-	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
-	`)
-	r.w.WriteString(
-		"{à}{{\\`a}}1 {è}{{\\`e}}1 {ì}{{\\`i}}1 {ò}{{\\`o}}1 {ù}{{\\`u}}1" +
-			"\n\t" +
-			"{À}{{\\`A}}1 {È}{{\\'E}}1 {Ì}{{\\`I}}1 {Ò}{{\\`O}}1 {Ù}{{\\`U}}1")
-	r.w.WriteString(`
-	{ä}{{\"a}}1 {ë}{{\"e}}1 {ï}{{\"i}}1 {ö}{{\"o}}1 {ü}{{\"u}}1
-	{Ä}{{\"A}}1 {Ë}{{\"E}}1 {Ï}{{\"I}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1
-	{â}{{\^a}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1
-	{Â}{{\^A}}1 {Ê}{{\^E}}1 {Î}{{\^I}}1 {Ô}{{\^O}}1 {Û}{{\^U}}1
-	{œ}{{\oe}}1 {Œ}{{\OE}}1 {æ}{{\ae}}1 {Æ}{{\AE}}1 {ß}{{\ss}}1
-	{ű}{{\H{u}}}1 {Ű}{{\H{U}}}1 {ő}{{\H{o}}}1 {Ő}{{\H{O}}}1
-	{ç}{{\c c}}1 {Ç}{{\c C}}1 {ø}{{\o}}1 {å}{{\r a}}1 {Å}{{\r A}}1
-	{€}{{\EUR}}1 {£}{{\pounds}}1
-}
-`)
-
-	if r.Languages != "" {
-		r.w.WriteString("\n" + `\usepackage[` + r.Languages + `]{babel}` + "\n")
-	}
-
-	r.w.WriteString(`\usepackage{csquotes}
-
-\hypersetup{colorlinks,
-	citecolor=black,
-	filecolor=black,
-	linkcolor=black,
-	linktoc=page,
-	urlcolor=black,
-	pdfstartview=FitH,
-	breaklinks=true,
-	pdfauthor={Blackfriday Markdown Processor v`)
-	r.w.WriteString(bf.Version)
-	r.w.WriteString(`},
-}
-
-\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
-\addtolength{\parskip}{0.5\baselineskip}
-`)
-
-	if r.Flags&NoParIndent != 0 {
-		r.w.WriteString(`\parindent=0pt
-`)
-	}
-
-	if title != "" {
-		r.w.WriteString(`
-\title{` + title + `}
-\author{` + author + `}
-`)
-	}
-
-	r.w.WriteString(`
-\begin{document}
-`)
-
-	if title != "" {
-		r.w.WriteString(`
-\maketitle
-`)
-		if r.Flags&TOC != 0 {
-			r.w.WriteString(`\vfill
-\thispagestyle{empty}
-
-\tableofcontents
-`)
-			if hasFigures {
-				r.w.WriteString(`\listoffigures
-`)
-			}
-			r.w.WriteString(`\clearpage
-`)
-		}
-	}
-
-	r.w.WriteString("\n\n")
-}
-
-func (r *Renderer) writeDocumentFooter() {
-	r.w.WriteString(`\end{document}` + "\n")
-}
-
 func languageAttr(info []byte) []byte {
 	if len(info) == 0 {
 		return nil
@@ -590,18 +468,142 @@ func hasFigures(ast *bf.Node) bool {
 	return result
 }
 
-// Render prints out the whole document.
-// If the CompletePage flag is on, it will print the preamble and the closing '\end{document}' as well.
-func (r *Renderer) Render(ast *bf.Node) []byte {
+// RenderHeader prints the LaTeX preamble if CompletePage is on.
+func (r *Renderer) RenderHeader(w io.Writer, ast *bf.Node) {
 	var title string
 
 	if r.Flags&CompletePage != 0 {
 		title = string(getTitle(ast))
-		r.writeDocumentHeader(title, r.Author, hasFigures(ast))
-	} else if r.Flags&ChapterTitle != 0 && strings.TrimSpace(title) != "" {
-		r.w.WriteString(`\chapter{` + title + "}\n\n")
-	}
 
+		// TODO: Color source code and links?
+		io.WriteString(w, `\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{marvosym}
+\usepackage{textcomp}
+\DeclareUnicodeCharacter{20AC}{\EUR{}}
+\DeclareUnicodeCharacter{2260}{\neq}
+\DeclareUnicodeCharacter{2264}{\leq}
+\DeclareUnicodeCharacter{2265}{\geq}
+\DeclareUnicodeCharacter{22C5}{\cdot}
+\DeclareUnicodeCharacter{A0}{~}
+\DeclareUnicodeCharacter{B1}{\pm}
+\DeclareUnicodeCharacter{D7}{\times}
+
+\usepackage{amsmath}
+\usepackage[export]{adjustbox} % loads also graphicx
+\usepackage{listings}
+\usepackage[margin=1in]{geometry}
+\usepackage{verbatim}
+\usepackage[normalem]{ulem}
+\usepackage{hyperref}
+
+\lstset{
+	numbers=left,
+	breaklines=true,
+	xleftmargin=2\baselineskip,
+	showstringspaces=false,
+	basicstyle=\ttfamily,
+	keywordstyle=\bfseries\color{green!40!black},
+	commentstyle=\itshape\color{purple!40!black},
+	stringstyle=\color{orange},
+	numberstyle=\ttfamily,
+	literate=
+	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+	`)
+		io.WriteString(w,
+			"{à}{{\\`a}}1 {è}{{\\`e}}1 {ì}{{\\`i}}1 {ò}{{\\`o}}1 {ù}{{\\`u}}1"+
+				"\n\t"+
+				"{À}{{\\`A}}1 {È}{{\\'E}}1 {Ì}{{\\`I}}1 {Ò}{{\\`O}}1 {Ù}{{\\`U}}1")
+		io.WriteString(w, `
+	{ä}{{\"a}}1 {ë}{{\"e}}1 {ï}{{\"i}}1 {ö}{{\"o}}1 {ü}{{\"u}}1
+	{Ä}{{\"A}}1 {Ë}{{\"E}}1 {Ï}{{\"I}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1
+	{â}{{\^a}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1
+	{Â}{{\^A}}1 {Ê}{{\^E}}1 {Î}{{\^I}}1 {Ô}{{\^O}}1 {Û}{{\^U}}1
+	{œ}{{\oe}}1 {Œ}{{\OE}}1 {æ}{{\ae}}1 {Æ}{{\AE}}1 {ß}{{\ss}}1
+	{ű}{{\H{u}}}1 {Ű}{{\H{U}}}1 {ő}{{\H{o}}}1 {Ő}{{\H{O}}}1
+	{ç}{{\c c}}1 {Ç}{{\c C}}1 {ø}{{\o}}1 {å}{{\r a}}1 {Å}{{\r A}}1
+	{€}{{\EUR}}1 {£}{{\pounds}}1
+}
+`)
+
+		if r.Languages != "" {
+			io.WriteString(w, "\n"+`\usepackage[`+r.Languages+`]{babel}`+"\n")
+		}
+
+		io.WriteString(w, `\usepackage{csquotes}
+
+\hypersetup{colorlinks,
+	citecolor=black,
+	filecolor=black,
+	linkcolor=black,
+	linktoc=page,
+	urlcolor=black,
+	pdfstartview=FitH,
+	breaklinks=true,
+	pdfauthor={Blackfriday Markdown Processor v`)
+		io.WriteString(w, bf.Version)
+		io.WriteString(w, `},
+}
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+\addtolength{\parskip}{0.5\baselineskip}
+`)
+
+		if r.Flags&NoParIndent != 0 {
+			io.WriteString(w, `\parindent=0pt
+`)
+		}
+
+		if title != "" {
+			io.WriteString(w, `
+\title{`+title+`}
+\author{`+r.Author+`}
+`)
+		}
+
+		io.WriteString(w, `
+\begin{document}
+`)
+
+		if title != "" {
+			r.w.WriteString(`
+\maketitle
+`)
+			if r.Flags&TOC != 0 {
+				r.w.WriteString(`\vfill
+\thispagestyle{empty}
+
+\tableofcontents
+`)
+				if hasFigures(ast) {
+					io.WriteString(w, `\listoffigures
+`)
+				}
+				io.WriteString(w, `\clearpage
+`)
+			}
+		}
+
+		io.WriteString(w, "\n\n")
+	} else if r.Flags&ChapterTitle != 0 && strings.TrimSpace(title) != "" {
+		io.WriteString(w, `\chapter{`+title+"}\n\n")
+	}
+}
+
+// RenderHeader prints the '\end{document}' if CompletePage is on.
+func (r *Renderer) RenderFooter(w io.Writer, ast *bf.Node) {
+	if r.Flags&CompletePage != 0 {
+		io.WriteString(w, `\end{document}`+"\n")
+	}
+}
+
+// Render prints out the whole document from the ast, header and footer included.
+func (r *Renderer) Render(ast *bf.Node) []byte {
+	r.RenderHeader(&r.w, ast)
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
 		if node.Type == bf.Heading && node.HeadingData.IsTitleblock {
 			return bf.SkipChildren
@@ -609,8 +611,17 @@ func (r *Renderer) Render(ast *bf.Node) []byte {
 		return r.RenderNode(&r.w, node, entering)
 	})
 
-	if r.Flags&CompletePage != 0 {
-		r.writeDocumentFooter()
-	}
+	r.RenderFooter(&r.w, ast)
 	return r.w.Bytes()
+}
+
+// Run prints out the whole document with CompletePage and TOC flags enabled.
+func Run(input []byte, opts ...bf.Option) []byte {
+	renderer := &Renderer{Flags: CompletePage | TOC}
+
+	optList := []bf.Option{bf.WithRenderer(renderer), bf.WithExtensions(bf.CommonExtensions)}
+	optList = append(optList, opts...)
+	parser := bf.New(optList...)
+	ast := parser.Parse([]byte(input))
+	return renderer.Render(ast)
 }
