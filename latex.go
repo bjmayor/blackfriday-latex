@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	bf "gopkg.in/russross/blackfriday.v2"
+	bf "github.com/russross/blackfriday/v2"
 )
 
 // Renderer is a type that implements the Renderer interface for LaTeX

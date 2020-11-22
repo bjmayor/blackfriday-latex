@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	// TODO: Update link on v2 release.
-	bf "gopkg.in/russross/blackfriday.v2"
+	bf "github.com/russross/blackfriday/v2"
 )
 
 const input = `

@@ -3,10 +3,10 @@ package latex_test
 import (
 	"fmt"
 
-	bflatex "github.com/ambrevar/blackfriday-latex"
 
 	// TODO: Update link on v2 release.
-	bf "gopkg.in/russross/blackfriday.v2"
+	bf "github.com/russross/blackfriday/v2"
+	bflatex "github.com/bjmayor/blackfriday-latex"
 )
 
 func Example() {
